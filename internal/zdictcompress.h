@@ -4,7 +4,7 @@
 #include <QByteArray>
 #include <QFile>
 
-namespace ZQDict {
+namespace ZDict {
 
 QByteArray gzInflate(const QByteArray &src);
 

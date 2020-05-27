@@ -5,7 +5,7 @@
 #include <QStringList>
 #include <QRegularExpression>
 
-namespace ZQDict {
+namespace ZDict {
 
 #define QSL QStringLiteral
 

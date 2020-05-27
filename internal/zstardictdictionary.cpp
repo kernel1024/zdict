@@ -1,13 +1,23 @@
+/*
+ * Parts of this file taken from:
+ * - GoldenDict. Licensed under GPLv3 or later, see the LICENSE file.
+ *   (c) 2008-2011 Konstantin Isakov <ikm@users.berlios.de>
+ */
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QTextStream>
 #include "zstardictdictionary.h"
 #include "zdictcompress.h"
+#include "zdictconversions.h"
 
 #include <QDebug>
 
-namespace ZQDict {
+
+// TODO: we need syn support
+
+namespace ZDict {
 
 ZStardictDictionary::ZStardictDictionary(QObject *parent)
     : ZDictionary(parent)
@@ -60,8 +70,7 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
         } else if (name == QSL("description")) {
             m_description = param;
         } else if (name == QSL("sametypesequence")) {
-            if (!param.isEmpty())
-                m_sameTypeSequence = param.at(0);
+            m_sameTypeSequence = param;
         } else if (name == QSL("idxoffsetbits")) {
             m_64bitOffset = (param == QSL("64"));
         } else if (name == QSL("idxfilesize")) {
@@ -198,16 +207,144 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
     return res;
 }
 
+QString ZStardictDictionary::handleResource(QChar type, const char *data, quint32 size)
+{
+    if (type == QChar('x')) { // Xdxf content
+        return ZDictConversions::xdxf2Html(QString::fromUtf8(data,size));
+
+    } else if ((type == QChar('h') || (type == QChar('g')))) { // Html content or Pango markup
+        return QString::fromUtf8(data, size );
+
+    } else if (type == QChar('m')) { // Pure meaning, usually means preformatted text
+        return ZDictConversions::htmlPreformat(QString::fromUtf8(data,size));
+
+    } else if (type == QChar('l')) { // Same as 'm', but not in utf8, instead in current locale's
+        return ZDictConversions::htmlPreformat(QString::fromLocal8Bit(data,size));
+
+    }
+
+    if (type.isLower())
+    {
+        return QSL("<b>Unsupported textual entry type '%1': %2.</b><br>" )
+                .arg(type).arg(QString::fromUtf8(data,size).toHtmlEscaped());
+    }
+
+    return QSL("<b>Unsupported blob entry type '%1'.</b><br>" ).arg(type);
+}
+
 QString ZStardictDictionary::loadArticle(const QString &word)
 {
     QString res;
 
     const auto idxList = m_index.values(word);
     for (const auto& idx : idxList) {
-        QByteArray article = dictZipRead(&m_dict,&m_dictData,idx.first,idx.second);
+        quint64 offset = idx.first;
+        quint32 size = idx.second;
 
-        res += QSL("\n<hr>\n%1:<br>\n%2").arg(getName(),QString::fromUtf8(article)); //TODO: format etc...
+        QByteArray article = dictZipRead(&m_dict,&m_dictData,offset,size);
 
+        QString articleText;
+        auto it = article.constBegin();
+
+        if (!m_sameTypeSequence.isEmpty()) {
+            for (int seq=0; seq<m_sameTypeSequence.length(); seq++) {
+                bool entrySizeKnown = (seq == (m_sameTypeSequence.length() - 1));
+
+                uint32_t entrySize;
+
+                if (entrySizeKnown) {
+                    entrySize = size;
+                } else if (size == 0) {
+                    qWarning() << "Short entry for the word encountered";
+                    break;
+                }
+
+                QChar type = m_sameTypeSequence.at(seq);
+
+                if (type.isLower()) {
+                    // Zero-terminated entry, unless it's the last one
+                    if (!entrySizeKnown)
+                        entrySize = strlen(it);
+
+                    if (size < entrySize) {
+                        qWarning() << "Malformed entry for the word encountered. ";
+                        break;
+                    }
+
+                    articleText += handleResource( type, it, entrySize );
+
+                    if ( !entrySizeKnown )
+                        ++entrySize; // Need to skip the zero byte
+                    it += entrySize;
+                    size -= entrySize;
+
+                } else if (type.isUpper()) {
+                    // An entry which has its size before contents, unless it's the last one
+                    if (!entrySizeKnown) {
+                        if (size < sizeof(quint32)) {
+                            qWarning() << "Malformed entry for the word encountered";
+                            break;
+                        }
+
+                        entrySize = be32toh(*(reinterpret_cast<quint32*>(const_cast<char*>(it))));
+                        it += sizeof(quint32);
+                        size -= sizeof( quint32 );
+                    }
+
+                    if ( size < entrySize ) {
+                        qWarning() << "Malformed entry for the word encountered: ";
+                        break;
+                    }
+
+                    articleText += handleResource( type, it, entrySize );
+                    it += entrySize;
+                    size -= entrySize;
+                } else {
+                    qWarning() << "Non-alpha entry type " << type;
+                    break;
+                }
+            }
+        } else {
+            // The sequence is stored in each article separately
+            while (size>0)
+            {
+                QChar type(*it);
+                if (type.isLower()) {
+                    // Zero-terminated entry
+                    size_t len = strlen(it + 1);
+
+                    if (size < len + 2) {
+                        qWarning() << "Malformed entry for the word encountered";
+                        break;
+                    }
+
+                    articleText += handleResource(*it, it + 1, len);
+                    it += len + 2;
+                    size -= len + 2;
+                } else if (type.isUpper()) {
+                    // An entry which havs its size before contents
+                    if ( size < sizeof(quint32) + 1 ) {
+                        qWarning() << "Malformed entry for the word encountered:";
+                        break;
+                    }
+
+                    quint32 entrySize = be32toh(*(reinterpret_cast<quint32*>(const_cast<char*>(it+1))));
+                    if (size < sizeof( uint32_t ) + 1 + entrySize) {
+                        qWarning() << "Malformed entry for the word encountered";
+                        break;
+                    }
+
+                    articleText += handleResource( *it, it + 1 + sizeof( uint32_t ), entrySize );
+                    it += sizeof( uint32_t ) + 1 + entrySize;
+                    size -= sizeof( uint32_t ) + 1 + entrySize;
+                } else {
+                    qWarning() << "Non-alpha entry type encountered " << type;
+                    break;
+                }
+            }
+        }
+
+        res += articleText;
     }
 
     return res;

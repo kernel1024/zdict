@@ -1,6 +1,6 @@
 #include "zdictionary.h"
 
-namespace ZQDict {
+namespace ZDict {
 
 ZDictionary::ZDictionary(QObject *parent)
     : QObject(parent)

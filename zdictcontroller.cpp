@@ -2,7 +2,6 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QString>
-#include <QMutexLocker>
 
 #include <algorithm>
 #include <execution>
@@ -14,32 +13,11 @@
 
 #include <QDebug>
 
-namespace ZQDict {
+namespace ZDict {
 
 void ZDictController::setMaxLookupWords(int maxLookupWords)
 {
     m_maxLookupWords = maxLookupWords;
-}
-
-void ZDictController::loadDictionary(const QString &baseFile)
-{
-    QFileInfo fi(baseFile);
-    if (!fi.exists()) return;
-
-    if (fi.suffix().compare(QSL("ifo"),Qt::CaseInsensitive) == 0) {
-        // StarDict dictionary info file
-
-        auto *dict = new ZStardictDictionary(this);
-        if (!dict->loadIndexes(fi.filePath())) {
-            qWarning() << QSL("Failed to load StarDict index file %1").arg(fi.filePath());
-            delete dict;
-            return;
-        }
-        m_dicts << QPointer<ZDictionary>(dict);
-        qInfo() << QSL("Dictionary loaded: %1 (%2)")
-                   .arg(dict->getName())
-                   .arg(dict->getWordCount());
-    }
 }
 
 ZDictController::ZDictController(QObject *parent)
@@ -52,12 +30,43 @@ ZDictController::~ZDictController() = default;
 
 void ZDictController::loadDictionaries(const QStringList &pathList)
 {
+    QStringList files;
+
     for (const auto &path : pathList) {
         QDirIterator it(path,QDir::Files | QDir::Readable,QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            loadDictionary(it.next());
-        }
+        while (it.hasNext())
+            files.append(it.next());
     }
+
+    std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
+            [this](const QString& filename){
+        QFileInfo fi(filename);
+        if (!fi.exists()) return;
+
+        ZDictionary *d = nullptr;
+
+        if (fi.suffix().compare(QSL("ifo"),Qt::CaseInsensitive) == 0) {
+            // StarDict dictionary info file
+            auto *dict = new ZStardictDictionary(this);
+            if (!dict->loadIndexes(fi.filePath())) {
+                qWarning() << QSL("Failed to load StarDict index file %1").arg(fi.filePath());
+                delete dict;
+                return;
+            }
+            d = dict;
+        }
+
+        if (d) {
+            m_dictsMutex.lock();
+            m_dicts << QPointer<ZDictionary>(d);
+            m_dictsMutex.unlock();
+
+            qInfo() << QSL("Dictionary loaded: %1 (%2)")
+                       .arg(d->getName())
+                       .arg(d->getWordCount());
+        }
+    });
+
     qInfo() << QSL("Dictionaries loading complete, %1 dictionaries loaded.").arg(m_dicts.count());
 }
 
@@ -88,14 +97,19 @@ QStringList ZDictController::wordLookup(const QString &word,
     return out;
 }
 
-QString ZDictController::loadArticle(const QString &word)
+QString ZDictController::loadArticle(const QString &word, bool addDictionaryName)
 {
     QString res;
     for (const auto& dict : qAsConst(m_dicts)) {
         const QString article = dict->loadArticle(word.toLower());
         if (!article.isEmpty()) {
+            QString hr;
             if (!res.isEmpty())
-                res.append(QSL("\n<br>\n"));
+                hr = QSL("<hr/>");
+
+            res.append(hr);
+            if (addDictionaryName)
+                res.append(QSL("<h4>%1:</h4>").arg(dict->getName()));
             res.append(article);
         }
     }

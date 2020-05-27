@@ -7,7 +7,7 @@
 #include "zdictionary.h"
 #include "zdictcompress.h"
 
-namespace ZQDict {
+namespace ZDict {
 
 class ZStardictDictionary : public ZDictionary
 {
@@ -24,11 +24,12 @@ private:
     QString m_name;
     QString m_description;
     int m_wordCount { -1 };
-    QChar m_sameTypeSequence;
+    QString m_sameTypeSequence;
     bool m_64bitOffset { false };
 
     bool loadStardictIndex(const QString& ifoFilename, unsigned int expectedIndexFileSize);
     bool loadStardictDict(const QString& ifoFilename);
+    QString handleResource(QChar type, const char *data, quint32 size);
 
 public:
     ZStardictDictionary(QObject *parent = nullptr);

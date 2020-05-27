@@ -5,8 +5,9 @@ extern "C" {
 }
 
 #include "zdictcompress.h"
+#include "zdictionary.h"
 
-namespace ZQDict {
+namespace ZDict {
 
 QByteArray gzInflate(const QByteArray &src)
 {
@@ -35,8 +36,6 @@ QByteArray gzInflate(const QByteArray &src)
 
         switch (ret) {
         case Z_NEED_DICT:
-            ret = Z_DATA_ERROR;     // and fall through
-            Q_FALLTHROUGH();
         case Z_DATA_ERROR:
         case Z_MEM_ERROR:
             inflateEnd(&strm);
@@ -215,12 +214,12 @@ QByteArray dictZipRead(QFile* dz, DictFileData* fileData, quint64 start, quint32
         strm.next_out  = reinterpret_cast<Bytef *>(inBuffer.data());
         strm.avail_out = IN_BUFFER_SIZE;
         if (inflate(&strm,  Z_PARTIAL_FLUSH ) != Z_OK) {
-            qWarning() << QStringLiteral("DictZIP: zlib inflate error: %1").arg(strm.msg);
+            qWarning() << QSL("DictZIP: zlib inflate error: %1").arg(QString::fromUtf8(strm.msg));
             res.clear();
             break;
         }
         if (strm.avail_in) {
-            qWarning() << QStringLiteral("DictZIP: inflate did not flush (%1 pending, %2 avail)")
+            qWarning() << QSL("DictZIP: inflate did not flush (%1 pending, %2 avail)")
                           .arg(strm.avail_in).arg(strm.avail_out);
             res.clear();
             break;
@@ -233,7 +232,7 @@ QByteArray dictZipRead(QFile* dz, DictFileData* fileData, quint64 start, quint32
                 res.append(inBuffer.mid(firstOffset, lastOffset - firstOffset));
             } else {
                 if (count != fileData->chunkLength) {
-                    qWarning() << QStringLiteral("DictZIP: Length = %1 instead of %2")
+                    qWarning() << QSL("DictZIP: Length = %1 instead of %2")
                                   .arg(count).arg(fileData->chunkLength);
                 }
                 res.append(inBuffer.mid(firstOffset, fileData->chunkLength - firstOffset));

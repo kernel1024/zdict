@@ -4,19 +4,19 @@
 #include <QObject>
 #include <QMap>
 #include <QPointer>
+#include <QMutex>
 
 #include "internal/zdictionary.h"
 
-namespace ZQDict {
+namespace ZDict {
 
 class ZDictController : public QObject
 {
     Q_OBJECT
 private:
     QVector<QPointer<ZDictionary> > m_dicts;
+    QMutex m_dictsMutex;
     int m_maxLookupWords { 10000 };
-
-    void loadDictionary(const QString& baseFile);
 
 public:
     explicit ZDictController(QObject *parent = nullptr);
@@ -26,11 +26,11 @@ public:
 
     QStringList wordLookup(const QString& word,
                            const QRegularExpression& filter = QRegularExpression());
-    QString loadArticle(const QString& word);
+    QString loadArticle(const QString& word, bool addDictionaryName = true);
 
     void setMaxLookupWords(int maxLookupWords);
 
-signals:
+Q_SIGNALS:
 
 };
 
