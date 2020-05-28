@@ -14,9 +14,6 @@
 
 #include <QDebug>
 
-
-// TODO: we need syn support
-
 namespace ZDict {
 
 ZStardictDictionary::ZStardictDictionary(QObject *parent)
@@ -33,7 +30,7 @@ ZStardictDictionary::~ZStardictDictionary()
 bool ZStardictDictionary::loadIndexes(const QString &indexFile)
 {
     m_index.clear();
-    m_words.clear();
+    m_foldedSynonyms.clear();
 
     QFile ifo(indexFile);
     if (!ifo.open(QIODevice::ReadOnly)) return false;
@@ -91,7 +88,7 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
     if (!loadStardictDict(indexFile)) {
         qWarning() << "Stardict: Unable to load DICT file.";
         m_index.clear();
-        m_words.clear();
+        m_foldedSynonyms.clear();
         return false;
     }
 
@@ -100,6 +97,9 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
 
 bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned int expectedIndexFileSize)
 {
+    const QRegularExpression rxSplitter(QSL("[\\s[:punct:]]"),
+                                        QRegularExpression::UseUnicodePropertiesOption);
+
     QFileInfo fi(ifoFilename);
     const QString idxFilename = fi.dir().filePath(QSL("%1.%2").arg(fi.completeBaseName(),QSL("idx")));
     const QString gzIdxFilename = fi.dir().filePath(QSL("%1.%2").arg(fi.completeBaseName(),QSL("idx.gz")));
@@ -150,8 +150,13 @@ bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned
         quint32 size = be32toh(*(reinterpret_cast<quint32*>(const_cast<char*>(it))));
         it += sizeof(quint32);
 
-        m_index.insert(word.toLower(),qMakePair(offset,size));
-        m_words.append(word.toLower());
+        const QStringList sl = word.split(rxSplitter,Qt::SkipEmptyParts);
+        for (const auto& s : sl) {
+            const QString ls = s.toLower();
+            m_index.insertMulti(ls,qMakePair(offset,size));
+            m_foldedSynonyms[offset].append(ls);
+        }
+
         wordCounter++;
     }
 
@@ -189,9 +194,20 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
 {
     QStringList res;
 
-    if (m_words.contains(word))
-        res.append(word);
+    // folded synonyms
+    const auto primaryWords = m_index.values(word);
+    for (const auto &w : primaryWords) {
+        for (const auto &syn : m_foldedSynonyms.value(w.first)) {
+            if (syn == word) continue;
+            res.append(QSL("%1 [%2]").arg(word,syn));
+        }
+    }
 
+    // word itself
+    if (!res.isEmpty())
+        res.prepend(word);
+
+    // words starting with...
     QRegularExpression rx = filter;
     if (rx.pattern().isEmpty()) {
         QString s = word;
@@ -201,8 +217,12 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
     rx.setPatternOptions(QRegularExpression::CaseInsensitiveOption |
                          QRegularExpression::UseUnicodePropertiesOption);
 
-    if (rx.isValid() && !rx.pattern().isEmpty())
-        res.append(m_words.filter(rx));
+    if (rx.isValid() && !rx.pattern().isEmpty()) {
+        for (auto it = m_index.keyBegin(), end = m_index.keyEnd(); it!=end; ++it) {
+            if (rx.match(*it).hasMatch())
+                res.append(*it);
+        }
+    }
 
     return res;
 }
@@ -238,6 +258,9 @@ QString ZStardictDictionary::loadArticle(const QString &word)
 
     const auto idxList = m_index.values(word);
     for (const auto& idx : idxList) {
+        if (!res.isEmpty())
+            res.append(QSL("<br/><b>%1</b>").arg(word));
+
         quint64 offset = idx.first;
         quint32 size = idx.second;
 

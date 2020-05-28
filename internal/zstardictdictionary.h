@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QStringList>
 #include <QMap>
+#include <QVector>
 #include "zdictionary.h"
 #include "zdictcompress.h"
 
@@ -16,7 +17,7 @@ class ZStardictDictionary : public ZDictionary
     friend class ZDictController;
 private:
     QMap<QString,QPair<quint64,quint32> > m_index;
-    QStringList m_words;
+    QHash<quint64,QStringList> m_foldedSynonyms;
 
     QFile m_dict;
     DictFileData m_dictData;

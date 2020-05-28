@@ -9,15 +9,6 @@
 #include "zdictionary.h"
 #include <QDebug>
 
-const QHash<QString,QString> articleStyles = {
-    { QSL("example"),   QSL("color:#808080;") },
-    { QSL("key"),       QSL("font-weight:bold;") },
-    { QSL("abbrev"),    QSL("font-style:italic;color:#2E8B57;") },
-    { QSL("editorial"), QSL("font-style:italic;color:#483D8B;") },
-    { QSL("dtrn"),      QSL("font-weight:bold;color:#400000;") },
-    { QSL("tr"),        QSL("font-weight:bold;") }
-};
-
 QString ZDictConversions::htmlPreformat(const QString & str)
 {
     QString result = str.toHtmlEscaped();
@@ -30,12 +21,20 @@ QString ZDictConversions::htmlPreformat(const QString & str)
 
 QString ZDictConversions::xdxf2Html(const QString& in)
 {
+    static const QHash<QString,QString> articleStyles = {
+        { QSL("example"),   QSL("color:#808080;") },
+        { QSL("key"),       QSL("font-weight:bold;") },
+        { QSL("abbrev"),    QSL("font-style:italic;color:#2E8B57;") },
+        { QSL("editorial"), QSL("font-style:italic;color:#483D8B;") },
+        { QSL("dtrn"),      QSL("font-weight:bold;color:#400000;") },
+        { QSL("tr"),        QSL("font-weight:bold;") }
+    };
+
     QString inConverted = in;
     inConverted.replace('\n',QSL("<br/>"));
 
     QDomDocument dd;
 
-    qDebug() << in;
     QString errorStr;
     int errorLine, errorColumn;
     if (!dd.setContent(QSL("<div>%1</div>").arg(inConverted).toUtf8(), false, &errorStr, &errorLine, &errorColumn  ) )
@@ -125,6 +124,5 @@ QString ZDictConversions::xdxf2Html(const QString& in)
     }
 
     QString res = dd.toString();
-    qDebug() << res;
     return res;
 }

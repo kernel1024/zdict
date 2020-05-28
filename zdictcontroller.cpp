@@ -38,8 +38,10 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
             files.append(it.next());
     }
 
+    QThread* callerThread = thread();
+
     std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
-            [this](const QString& filename){
+            [this,callerThread](const QString& filename){
         QFileInfo fi(filename);
         if (!fi.exists()) return;
 
@@ -47,7 +49,7 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
 
         if (fi.suffix().compare(QSL("ifo"),Qt::CaseInsensitive) == 0) {
             // StarDict dictionary info file
-            auto *dict = new ZStardictDictionary(this);
+            auto *dict = new ZStardictDictionary();
             if (!dict->loadIndexes(fi.filePath())) {
                 qWarning() << QSL("Failed to load StarDict index file %1").arg(fi.filePath());
                 delete dict;
@@ -64,6 +66,8 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
             qInfo() << QSL("Dictionary loaded: %1 (%2)")
                        .arg(d->getName())
                        .arg(d->getWordCount());
+
+            d->moveToThread(callerThread);
         }
     });
 
@@ -99,9 +103,13 @@ QStringList ZDictController::wordLookup(const QString &word,
 
 QString ZDictController::loadArticle(const QString &word, bool addDictionaryName)
 {
+    const QRegularExpression rx(QSL("\\s+\\[.*\\]"));
     QString res;
+    QString w = word.toLower();
+    w.remove(rx);
+
     for (const auto& dict : qAsConst(m_dicts)) {
-        const QString article = dict->loadArticle(word.toLower());
+        const QString article = dict->loadArticle(w);
         if (!article.isEmpty()) {
             QString hr;
             if (!res.isEmpty())
