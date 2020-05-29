@@ -17,7 +17,7 @@ QByteArray gzInflate(const QByteArray &src)
     char buf[chunkSize] = {};
 
     z_stream strm;
-    int ret;
+    int ret = 0;
 
     strm.zalloc = nullptr;
     strm.zfree = nullptr;
@@ -40,6 +40,8 @@ QByteArray gzInflate(const QByteArray &src)
         case Z_MEM_ERROR:
             inflateEnd(&strm);
             return QByteArray();
+        default:
+            break;
         }
 
         res.append(buf, chunkSize - strm.avail_out);
@@ -54,8 +56,8 @@ bool dictZipInitialize(QFile* dz, DictFileData* fileData)
 {
     fileData->clear();
 
-    const QByteArray GZ_MAGIC = QByteArrayLiteral("\x1f\x8b");
-    const QByteArray DZ_MAGIC = QByteArrayLiteral("RA");
+    const QByteArray GZ_MAGIC = QByteArrayLiteral("\x1f\x8b"); // NOLINT
+    const QByteArray DZ_MAGIC = QByteArrayLiteral("RA"); // NOLINT
 
     const char GZ_FEXTRA = 0x04;
     const char GZ_FNAME = 0x08;
@@ -214,12 +216,12 @@ QByteArray dictZipRead(QFile* dz, DictFileData* fileData, quint64 start, quint32
         strm.next_out  = reinterpret_cast<Bytef *>(inBuffer.data());
         strm.avail_out = IN_BUFFER_SIZE;
         if (inflate(&strm,  Z_PARTIAL_FLUSH ) != Z_OK) {
-            qWarning() << QSL("DictZIP: zlib inflate error: %1").arg(QString::fromUtf8(strm.msg));
+            qWarning() << ZDQSL("DictZIP: zlib inflate error: %1").arg(QString::fromUtf8(strm.msg));
             res.clear();
             break;
         }
         if (strm.avail_in) {
-            qWarning() << QSL("DictZIP: inflate did not flush (%1 pending, %2 avail)")
+            qWarning() << ZDQSL("DictZIP: inflate did not flush (%1 pending, %2 avail)")
                           .arg(strm.avail_in).arg(strm.avail_out);
             res.clear();
             break;
@@ -232,7 +234,7 @@ QByteArray dictZipRead(QFile* dz, DictFileData* fileData, quint64 start, quint32
                 res.append(inBuffer.mid(firstOffset, lastOffset - firstOffset));
             } else {
                 if (count != fileData->chunkLength) {
-                    qWarning() << QSL("DictZIP: Length = %1 instead of %2")
+                    qWarning() << ZDQSL("DictZIP: Length = %1 instead of %2")
                                   .arg(count).arg(fileData->chunkLength);
                 }
                 res.append(inBuffer.mid(firstOffset, fileData->chunkLength - firstOffset));

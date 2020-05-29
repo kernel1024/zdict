@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QStringList>
-#include <QMap>
+#include <QMultiMap>
 #include <QVector>
 #include "zdictionary.h"
 #include "zdictcompress.h"
@@ -16,8 +16,7 @@ class ZStardictDictionary : public ZDictionary
 
     friend class ZDictController;
 private:
-    QMap<QString,QPair<quint64,quint32> > m_index;
-    QHash<quint64,QStringList> m_foldedSynonyms;
+    QMultiMap<QString,QPair<quint64,quint32> > m_index;
 
     QFile m_dict;
     DictFileData m_dictData;
@@ -39,7 +38,9 @@ public:
 protected:
     bool loadIndexes(const QString& indexFile) override;
     QStringList wordLookup(const QString& word,
-                           const QRegularExpression& filter = QRegularExpression()) override;
+                           const QRegularExpression& filter = QRegularExpression(),
+                           bool suppressMultiforms = false,
+                           int maxLookupWords = defaultMaxLookupWords) override;
     QString loadArticle(const QString& word) override;
     QString getName() override { return m_name; };
     QString getDescription() override { return m_description; };

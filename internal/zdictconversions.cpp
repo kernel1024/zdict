@@ -5,6 +5,7 @@
  */
 
 #include <QDomDocument>
+#include <QUrl>
 #include "zdictconversions.h"
 #include "zdictionary.h"
 #include <QDebug>
@@ -12,8 +13,8 @@
 QString ZDictConversions::htmlPreformat(const QString & str)
 {
     QString result = str.toHtmlEscaped();
-    result.replace('\t',QSL("&emsp;"));
-    result.replace('\n',QSL("<br/>"));
+    result.replace('\t',ZDQSL("&emsp;"));
+    result.replace('\n',ZDQSL("<br/>"));
     result.remove('\r');
 
     return result;
@@ -22,22 +23,23 @@ QString ZDictConversions::htmlPreformat(const QString & str)
 QString ZDictConversions::xdxf2Html(const QString& in)
 {
     static const QHash<QString,QString> articleStyles = {
-        { QSL("example"),   QSL("color:#808080;") },
-        { QSL("key"),       QSL("font-weight:bold;") },
-        { QSL("abbrev"),    QSL("font-style:italic;color:#2E8B57;") },
-        { QSL("editorial"), QSL("font-style:italic;color:#483D8B;") },
-        { QSL("dtrn"),      QSL("font-weight:bold;color:#400000;") },
-        { QSL("tr"),        QSL("font-weight:bold;") }
+        { ZDQSL("example"),   ZDQSL("color:#808080;") },
+        { ZDQSL("key"),       ZDQSL("font-weight:bold;") },
+        { ZDQSL("abbrev"),    ZDQSL("font-style:italic;color:#2E8B57;") },
+        { ZDQSL("editorial"), ZDQSL("font-style:italic;color:#483D8B;") },
+        { ZDQSL("dtrn"),      ZDQSL("font-weight:bold;color:#400000;") },
+        { ZDQSL("tr"),        ZDQSL("font-weight:bold;") }
     };
 
     QString inConverted = in;
-    inConverted.replace('\n',QSL("<br/>"));
+    inConverted.replace('\n',ZDQSL("<br/>"));
 
     QDomDocument dd;
 
     QString errorStr;
-    int errorLine, errorColumn;
-    if (!dd.setContent(QSL("<div>%1</div>").arg(inConverted).toUtf8(), false, &errorStr, &errorLine, &errorColumn  ) )
+    int errorLine = 0;
+    int errorColumn = 0;
+    if (!dd.setContent(ZDQSL("<div>%1</div>").arg(inConverted).toUtf8(), false, &errorStr, &errorLine, &errorColumn  ) )
     {
         qWarning() << "Xdxf2html error, xml parse failed: " << errorStr << " at "
                    << errorLine << errorColumn;
@@ -45,82 +47,82 @@ QString ZDictConversions::xdxf2Html(const QString& in)
         return in;
     }
 
-    QDomNodeList nodes = dd.elementsByTagName( QSL("ex") ); // Example
+    QDomNodeList nodes = dd.elementsByTagName(ZDQSL("ex")); // Example
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("span") );
-        QString style = articleStyles.value(QSL("example"));
+        el.setTagName(ZDQSL("span"));
+        QString style = articleStyles.value(ZDQSL("example"));
         if (!style.isEmpty())
-            el.setAttribute(QSL("style"), style);
+            el.setAttribute(ZDQSL("style"), style);
     }
 
-    nodes = dd.elementsByTagName( QSL("k") ); // Key
+    nodes = dd.elementsByTagName(ZDQSL("k")); // Key
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("span") );
-        QString style = articleStyles.value(QSL("key"));
+        el.setTagName(ZDQSL("span"));
+        QString style = articleStyles.value(ZDQSL("key"));
         if (!style.isEmpty())
-            el.setAttribute(QSL("style"), style);
+            el.setAttribute(ZDQSL("style"), style);
     }
 
-    nodes = dd.elementsByTagName( QSL("kref") ); // Reference to another word
+    nodes = dd.elementsByTagName(ZDQSL("kref")); // Reference to another word
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("a") );
-        el.setAttribute( QSL("href"), QSL( "bword:" ) + el.text() );
+        el.setTagName(ZDQSL("a"));
+        el.setAttribute(ZDQSL("href"), ZDQSL( "zdict?word=" ) + QUrl::toPercentEncoding(el.text()));
     }
 
-    nodes = dd.elementsByTagName( QSL("abr") ); // Abbreviation
+    nodes = dd.elementsByTagName(ZDQSL("abr")); // Abbreviation
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("span") );
-        QString style = articleStyles.value(QSL("abbrev"));
+        el.setTagName(ZDQSL("span"));
+        QString style = articleStyles.value(ZDQSL("abbrev"));
         if (!style.isEmpty())
-            el.setAttribute(QSL("style"), style);
+            el.setAttribute(ZDQSL("style"), style);
     }
 
-    nodes = dd.elementsByTagName( QSL("dtrn") ); // Direct translation
+    nodes = dd.elementsByTagName(ZDQSL("dtrn")); // Direct translation
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("span") );
-        QString style = articleStyles.value(QSL("dtrn"));
+        el.setTagName(ZDQSL("span"));
+        QString style = articleStyles.value(ZDQSL("dtrn"));
         if (!style.isEmpty())
-            el.setAttribute(QSL("style"), style);
+            el.setAttribute(ZDQSL("style"), style);
     }
 
-    nodes = dd.elementsByTagName( QSL("c") ); // Color
+    nodes = dd.elementsByTagName(ZDQSL("c")); // Color
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("font") );
-        if ( el.hasAttribute( QSL("c") ) ) {
-            el.setAttribute( QSL("color"), el.attribute( QSL("c") ) );
-            el.removeAttribute( QSL("c") );
+        el.setTagName(ZDQSL("font"));
+        if ( el.hasAttribute(ZDQSL("c"))) {
+            el.setAttribute(ZDQSL("color"), el.attribute(ZDQSL("c")));
+            el.removeAttribute(ZDQSL("c"));
         }
     }
 
-    nodes = dd.elementsByTagName( QSL("co") ); // Editorial comment
+    nodes = dd.elementsByTagName(ZDQSL("co")); // Editorial comment
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName( QSL("span") );
-        QString style = articleStyles.value(QSL("editorial"));
+        el.setTagName(ZDQSL("span"));
+        QString style = articleStyles.value(ZDQSL("editorial"));
         if (!style.isEmpty())
-            el.setAttribute(QSL("style"), style);
+            el.setAttribute(ZDQSL("style"), style);
     }
 
-    nodes = dd.elementsByTagName( QSL("tr") ); // Transcription
+    nodes = dd.elementsByTagName(ZDQSL("tr")); // Transcription
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName(QSL("span"));
-        QString style = articleStyles.value(QSL("tr"));
+        el.setTagName(ZDQSL("span"));
+        QString style = articleStyles.value(ZDQSL("tr"));
         if (!style.isEmpty())
-            el.setAttribute(QSL("style"), style);
+            el.setAttribute(ZDQSL("style"), style);
     }
 
-    nodes = dd.elementsByTagName( QSL("rref") ); // Resource reference
+    nodes = dd.elementsByTagName(ZDQSL("rref")); // Resource reference
     while (nodes.size()>0) {
         QDomElement el = nodes.at(0).toElement();
-        el.setTagName(QSL("span"));
-        el.setAttribute(QSL("style"), QSL("display:none;") );
+        el.setTagName(ZDQSL("span"));
+        el.setAttribute(ZDQSL("style"), ZDQSL("display:none;"));
     }
 
     QString res = dd.toString();

@@ -2,6 +2,7 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QString>
+#include <QThread>
 
 #include <algorithm>
 #include <execution>
@@ -15,75 +16,81 @@
 
 namespace ZDict {
 
-void ZDictController::setMaxLookupWords(int maxLookupWords)
-{
-    m_maxLookupWords = maxLookupWords;
-}
-
 ZDictController::ZDictController(QObject *parent)
     : QObject(parent)
 {
-
 }
 
 ZDictController::~ZDictController() = default;
 
 void ZDictController::loadDictionaries(const QStringList &pathList)
 {
-    QStringList files;
-
-    for (const auto &path : pathList) {
-        QDirIterator it(path,QDir::Files | QDir::Readable,QDirIterator::Subdirectories);
-        while (it.hasNext())
-            files.append(it.next());
-    }
-
     QThread* callerThread = thread();
 
-    std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
-            [this,callerThread](const QString& filename){
-        QFileInfo fi(filename);
-        if (!fi.exists()) return;
+    QThread* th = QThread::create([this,callerThread,pathList]{
 
-        ZDictionary *d = nullptr;
+        QStringList files;
 
-        if (fi.suffix().compare(QSL("ifo"),Qt::CaseInsensitive) == 0) {
-            // StarDict dictionary info file
-            auto *dict = new ZStardictDictionary();
-            if (!dict->loadIndexes(fi.filePath())) {
-                qWarning() << QSL("Failed to load StarDict index file %1").arg(fi.filePath());
-                delete dict;
-                return;
+        for (const auto &path : pathList) {
+            QDirIterator it(path,QDir::Files | QDir::Readable,QDirIterator::Subdirectories);
+            while (it.hasNext())
+                files.append(it.next());
+        }
+
+        std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
+                      [this,callerThread](const QString& filename){
+            QFileInfo fi(filename);
+            if (!fi.exists()) return;
+
+            ZDictionary *d = nullptr;
+
+            if (fi.suffix().compare(ZDQSL("ifo"),Qt::CaseInsensitive) == 0) {
+                // StarDict dictionary info file
+                auto *dict = new ZStardictDictionary();
+                if (!dict->loadIndexes(fi.filePath())) {
+                    qWarning() << ZDQSL("Failed to load StarDict index file %1").arg(fi.filePath());
+                    delete dict;
+                    return;
+                }
+                d = dict;
             }
-            d = dict;
-        }
 
-        if (d) {
-            m_dictsMutex.lock();
-            m_dicts << QPointer<ZDictionary>(d);
-            m_dictsMutex.unlock();
+            if (d) {
+                m_dictsMutex.lock();
+                m_dicts << QPointer<ZDictionary>(d);
+                m_dictsMutex.unlock();
 
-            qInfo() << QSL("Dictionary loaded: %1 (%2)")
-                       .arg(d->getName())
-                       .arg(d->getWordCount());
+                qInfo() << ZDQSL("Dictionary loaded: %1 (%2)")
+                           .arg(d->getName())
+                           .arg(d->getWordCount());
 
-            d->moveToThread(callerThread);
-        }
+                d->moveToThread(callerThread);
+            }
+        });
+
+        qInfo() << ZDQSL("Dictionaries loading complete, %1 dictionaries loaded.").arg(m_dicts.count());
+        m_loaded.storeRelease(true);
     });
 
-    qInfo() << QSL("Dictionaries loading complete, %1 dictionaries loaded.").arg(m_dicts.count());
+    connect(th,&QThread::finished,th,&QThread::deleteLater);
+
+    th->start();
 }
 
 QStringList ZDictController::wordLookup(const QString &word,
-                                        const QRegularExpression& filter)
+                                        const QRegularExpression& filter,
+                                        bool suppressMultiforms,
+                                        int maxLookupWords)
 {
     QStringList res;
+    if (!m_loaded.loadAcquire()) return res;
+    if (word.isEmpty()) return res;
 
     // Multithreaded word search - one thread per dictionary
     QMutex resMutex;
     std::for_each(std::execution::par,m_dicts.constBegin(),m_dicts.constEnd(),
-                  [&res,&resMutex,word,filter](const QPointer<ZDictionary> & ptr){
-        const QStringList sl = ptr->wordLookup(word.toLower(),filter);
+                  [&res,&resMutex,word,filter,maxLookupWords,suppressMultiforms](const QPointer<ZDictionary> & ptr){
+        const QStringList sl = ptr->wordLookup(word.toLower(),filter,suppressMultiforms,maxLookupWords);
         resMutex.lock();
         res.append(sl);
         resMutex.unlock();
@@ -95,7 +102,7 @@ QStringList ZDictController::wordLookup(const QString &word,
 
     // parallel cutting first n words for result
     QStringList out;
-    int nelems = qMin(m_maxLookupWords,res.count());
+    int nelems = qMin(maxLookupWords,res.count());
     out.reserve(nelems);
     std::copy_n(std::execution::par,res.begin(),nelems,std::back_inserter(out));
     return out;
@@ -103,8 +110,11 @@ QStringList ZDictController::wordLookup(const QString &word,
 
 QString ZDictController::loadArticle(const QString &word, bool addDictionaryName)
 {
-    const QRegularExpression rx(QSL("\\s+\\[.*\\]"));
+    const QRegularExpression rx(ZDQSL("\\s+\\[.*\\]"));
+
     QString res;
+    if (!m_loaded.loadAcquire()) return res;
+
     QString w = word.toLower();
     w.remove(rx);
 
@@ -113,14 +123,26 @@ QString ZDictController::loadArticle(const QString &word, bool addDictionaryName
         if (!article.isEmpty()) {
             QString hr;
             if (!res.isEmpty())
-                hr = QSL("<hr/>");
+                hr = ZDQSL("<hr/>");
 
             res.append(hr);
             if (addDictionaryName)
-                res.append(QSL("<h4>%1:</h4>").arg(dict->getName()));
+                res.append(ZDQSL("<h4>%1:</h4>").arg(dict->getName()));
             res.append(article);
         }
     }
+    return res;
+}
+
+QStringList ZDictController::getLoadedDictionaries() const
+{
+    QStringList res;
+    if (!m_loaded.loadAcquire()) return res;
+
+    res.reserve(m_dicts.count());
+    for (const auto & dict : qAsConst(m_dicts))
+        res.append(ZDQSL("%1 (%2)").arg(dict->getName()).arg(dict->getWordCount()));
+
     return res;
 }
 

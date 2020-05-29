@@ -30,7 +30,6 @@ ZStardictDictionary::~ZStardictDictionary()
 bool ZStardictDictionary::loadIndexes(const QString &indexFile)
 {
     m_index.clear();
-    m_foldedSynonyms.clear();
 
     QFile ifo(indexFile);
     if (!ifo.open(QIODevice::ReadOnly)) return false;
@@ -43,7 +42,7 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
     while (line.isEmpty() && !ifos.atEnd())
         line = ifos.readLine().trimmed();
 
-    if (line != QSL("StarDict's dict ifo file")) {
+    if (line != ZDQSL("StarDict's dict ifo file")) {
         qWarning() << "Stardict: ifo signature not found.";
         return false;
     }
@@ -57,20 +56,20 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
         const QString name = line.left(eq).trimmed().toLower();
         const QString param = line.mid(eq+1);
 
-        if (name == QSL("wordcount")) {
+        if (name == ZDQSL("wordcount")) {
             bool ok = false;
             int wc = param.toInt(&ok);
             if (ok)
                 m_wordCount = wc;
-        } else if (name == QSL("bookname")) {
+        } else if (name == ZDQSL("bookname")) {
             m_name = param;
-        } else if (name == QSL("description")) {
+        } else if (name == ZDQSL("description")) {
             m_description = param;
-        } else if (name == QSL("sametypesequence")) {
+        } else if (name == ZDQSL("sametypesequence")) {
             m_sameTypeSequence = param;
-        } else if (name == QSL("idxoffsetbits")) {
-            m_64bitOffset = (param == QSL("64"));
-        } else if (name == QSL("idxfilesize")) {
+        } else if (name == ZDQSL("idxoffsetbits")) {
+            m_64bitOffset = (param == ZDQSL("64"));
+        } else if (name == ZDQSL("idxfilesize")) {
             idxFileSize = param.toULongLong();
         }
     }
@@ -88,7 +87,6 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
     if (!loadStardictDict(indexFile)) {
         qWarning() << "Stardict: Unable to load DICT file.";
         m_index.clear();
-        m_foldedSynonyms.clear();
         return false;
     }
 
@@ -97,12 +95,12 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
 
 bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned int expectedIndexFileSize)
 {
-    const QRegularExpression rxSplitter(QSL("[\\s[:punct:]]"),
+    const QRegularExpression rxSplitter(ZDQSL("[\\s[:punct:]]"),
                                         QRegularExpression::UseUnicodePropertiesOption);
 
     QFileInfo fi(ifoFilename);
-    const QString idxFilename = fi.dir().filePath(QSL("%1.%2").arg(fi.completeBaseName(),QSL("idx")));
-    const QString gzIdxFilename = fi.dir().filePath(QSL("%1.%2").arg(fi.completeBaseName(),QSL("idx.gz")));
+    const QString idxFilename = fi.dir().filePath(ZDQSL("%1.%2").arg(fi.completeBaseName(),ZDQSL("idx")));
+    const QString gzIdxFilename = fi.dir().filePath(ZDQSL("%1.%2").arg(fi.completeBaseName(),ZDQSL("idx.gz")));
 
     bool gz = false;
     QFile idx(idxFilename);
@@ -150,12 +148,13 @@ bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned
         quint32 size = be32toh(*(reinterpret_cast<quint32*>(const_cast<char*>(it))));
         it += sizeof(quint32);
 
+        // split complex form by whitespaces/punctuation
         const QStringList sl = word.split(rxSplitter,Qt::SkipEmptyParts);
-        for (const auto& s : sl) {
-            const QString ls = s.toLower();
-            m_index.insertMulti(ls,qMakePair(offset,size));
-            m_foldedSynonyms[offset].append(ls);
-        }
+        for (const auto& s : sl)
+            m_index.insert(s.toLower(),qMakePair(offset,size));
+
+        if (sl.count()>1) // add complex form itself
+            m_index.insert(word,qMakePair(offset,size));
 
         wordCounter++;
     }
@@ -169,8 +168,8 @@ bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned
 bool ZStardictDictionary::loadStardictDict(const QString &ifoFilename)
 {
     QFileInfo fi(ifoFilename);
-    const QString dictFilename = fi.dir().filePath(QSL("%1.%2").arg(fi.completeBaseName(),QSL("dict")));
-    const QString dzDictFilename = fi.dir().filePath(QSL("%1.%2").arg(fi.completeBaseName(),QSL("dict.dz")));
+    const QString dictFilename = fi.dir().filePath(ZDQSL("%1.%2").arg(fi.completeBaseName(),ZDQSL("dict")));
+    const QString dzDictFilename = fi.dir().filePath(ZDQSL("%1.%2").arg(fi.completeBaseName(),ZDQSL("dict.dz")));
 
     m_dictData.clear();
     m_dict.setFileName(dictFilename);
@@ -190,18 +189,11 @@ bool ZStardictDictionary::loadStardictDict(const QString &ifoFilename)
 }
 
 QStringList ZStardictDictionary::wordLookup(const QString& word,
-                                            const QRegularExpression& filter)
+                                            const QRegularExpression& filter,
+                                            bool suppressMultiforms,
+                                            int maxLookupWords)
 {
     QStringList res;
-
-    // folded synonyms
-    const auto primaryWords = m_index.values(word);
-    for (const auto &w : primaryWords) {
-        for (const auto &syn : m_foldedSynonyms.value(w.first)) {
-            if (syn == word) continue;
-            res.append(QSL("%1 [%2]").arg(word,syn));
-        }
-    }
 
     // word itself
     if (!res.isEmpty())
@@ -211,16 +203,23 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
     QRegularExpression rx = filter;
     if (rx.pattern().isEmpty()) {
         QString s = word;
-        s.remove(QRegularExpression(QSL("\\W"),QRegularExpression::UseUnicodePropertiesOption));
-        rx = QRegularExpression(QSL("^%1").arg(s));
+        s.remove(QRegularExpression(ZDQSL("\\W"),QRegularExpression::UseUnicodePropertiesOption));
+        rx = QRegularExpression(ZDQSL("^%1").arg(s));
     }
     rx.setPatternOptions(QRegularExpression::CaseInsensitiveOption |
                          QRegularExpression::UseUnicodePropertiesOption);
 
+    QList<quint64> usedArticles;
     if (rx.isValid() && !rx.pattern().isEmpty()) {
-        for (auto it = m_index.keyBegin(), end = m_index.keyEnd(); it!=end; ++it) {
-            if (rx.match(*it).hasMatch())
-                res.append(*it);
+        for (auto it = m_index.constKeyValueBegin(), end = m_index.constKeyValueEnd(); it!=end; ++it) {
+            if (rx.match((*it).first).hasMatch() &&
+                    (!suppressMultiforms || !usedArticles.contains((*it).second.first))) {
+                res.append((*it).first);
+                if (suppressMultiforms)
+                    usedArticles.append((*it).second.first);
+            }
+
+            if (res.count()>=maxLookupWords) break;
         }
     }
 
@@ -229,27 +228,24 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
 
 QString ZStardictDictionary::handleResource(QChar type, const char *data, quint32 size)
 {
-    if (type == QChar('x')) { // Xdxf content
+    if (type == QChar('x')) // Xdxf content
         return ZDictConversions::xdxf2Html(QString::fromUtf8(data,size));
 
-    } else if ((type == QChar('h') || (type == QChar('g')))) { // Html content or Pango markup
+    if ((type == QChar('h') || (type == QChar('g')))) // Html content or Pango markup
         return QString::fromUtf8(data, size );
 
-    } else if (type == QChar('m')) { // Pure meaning, usually means preformatted text
+    if (type == QChar('m')) // Pure meaning, usually means preformatted text
         return ZDictConversions::htmlPreformat(QString::fromUtf8(data,size));
 
-    } else if (type == QChar('l')) { // Same as 'm', but not in utf8, instead in current locale's
+    if (type == QChar('l')) // Same as 'm', but not in utf8, instead in current locale's
         return ZDictConversions::htmlPreformat(QString::fromLocal8Bit(data,size));
 
-    }
-
-    if (type.isLower())
-    {
-        return QSL("<b>Unsupported textual entry type '%1': %2.</b><br>" )
+    if (type.isLower()) {
+        return ZDQSL("<b>Unsupported textual entry type '%1': %2.</b><br>" )
                 .arg(type).arg(QString::fromUtf8(data,size).toHtmlEscaped());
     }
 
-    return QSL("<b>Unsupported blob entry type '%1'.</b><br>" ).arg(type);
+    return ZDQSL("<b>Unsupported blob entry type '%1'.</b><br>" ).arg(type);
 }
 
 QString ZStardictDictionary::loadArticle(const QString &word)
@@ -259,7 +255,7 @@ QString ZStardictDictionary::loadArticle(const QString &word)
     const auto idxList = m_index.values(word);
     for (const auto& idx : idxList) {
         if (!res.isEmpty())
-            res.append(QSL("<br/><b>%1</b>").arg(word));
+            res.append(ZDQSL("<br/><b>%1</b>").arg(word));
 
         quint64 offset = idx.first;
         quint32 size = idx.second;

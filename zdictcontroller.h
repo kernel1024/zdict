@@ -16,7 +16,7 @@ class ZDictController : public QObject
 private:
     QVector<QPointer<ZDictionary> > m_dicts;
     QMutex m_dictsMutex;
-    int m_maxLookupWords { 10000 };
+    QAtomicInteger<bool> m_loaded;
 
 public:
     explicit ZDictController(QObject *parent = nullptr);
@@ -25,10 +25,14 @@ public:
     void loadDictionaries(const QStringList& pathList);
 
     QStringList wordLookup(const QString& word,
-                           const QRegularExpression& filter = QRegularExpression());
+                           const QRegularExpression& filter = QRegularExpression(),
+                           bool suppressMultiforms = false,
+                           int maxLookupWords = defaultMaxLookupWords);
     QString loadArticle(const QString& word, bool addDictionaryName = true);
 
     void setMaxLookupWords(int maxLookupWords);
+
+    QStringList getLoadedDictionaries() const;
 
 Q_SIGNALS:
 
