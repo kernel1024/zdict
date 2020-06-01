@@ -78,7 +78,6 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
 }
 
 QStringList ZDictController::wordLookup(const QString &word,
-                                        const QRegularExpression& filter,
                                         bool suppressMultiforms,
                                         int maxLookupWords)
 {
@@ -86,11 +85,15 @@ QStringList ZDictController::wordLookup(const QString &word,
     if (!m_loaded.loadAcquire()) return res;
     if (word.isEmpty()) return res;
 
+    QString w = word.toLower();
+    w.remove(QRegularExpression(ZDQSL("\\s+.*"),QRegularExpression::UseUnicodePropertiesOption));
+    w.remove(QRegularExpression(ZDQSL("\\W+"),QRegularExpression::UseUnicodePropertiesOption));
+
     // Multithreaded word search - one thread per dictionary
     QMutex resMutex;
     std::for_each(std::execution::par,m_dicts.constBegin(),m_dicts.constEnd(),
-                  [&res,&resMutex,word,filter,maxLookupWords,suppressMultiforms](const QPointer<ZDictionary> & ptr){
-        const QStringList sl = ptr->wordLookup(word.toLower(),filter,suppressMultiforms,maxLookupWords);
+                  [&res,&resMutex,w,maxLookupWords,suppressMultiforms](const QPointer<ZDictionary> & ptr){
+        const QStringList sl = ptr->wordLookup(w,suppressMultiforms,maxLookupWords);
         resMutex.lock();
         res.append(sl);
         resMutex.unlock();

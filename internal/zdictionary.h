@@ -25,7 +25,6 @@ public:
 protected:
     virtual bool loadIndexes(const QString& indexFile) = 0;
     virtual QStringList wordLookup(const QString& word,
-                                   const QRegularExpression& filter = QRegularExpression(),
                                    bool suppressMultiforms = false,
                                    int maxLookupWords = defaultMaxLookupWords) = 0;
     virtual QString loadArticle(const QString& word) = 0;

@@ -189,38 +189,27 @@ bool ZStardictDictionary::loadStardictDict(const QString &ifoFilename)
 }
 
 QStringList ZStardictDictionary::wordLookup(const QString& word,
-                                            const QRegularExpression& filter,
                                             bool suppressMultiforms,
                                             int maxLookupWords)
 {
     QStringList res;
 
-    // word itself
-    if (!res.isEmpty())
-        res.prepend(word);
-
-    // words starting with...
-    QRegularExpression rx = filter;
-    if (rx.pattern().isEmpty()) {
-        QString s = word;
-        s.remove(QRegularExpression(ZDQSL("\\W"),QRegularExpression::UseUnicodePropertiesOption));
-        rx = QRegularExpression(ZDQSL("^%1").arg(s));
-    }
-    rx.setPatternOptions(QRegularExpression::CaseInsensitiveOption |
-                         QRegularExpression::UseUnicodePropertiesOption);
-
     QList<quint64> usedArticles;
-    if (rx.isValid() && !rx.pattern().isEmpty()) {
-        for (auto it = m_index.constKeyValueBegin(), end = m_index.constKeyValueEnd(); it!=end; ++it) {
-            if (rx.match((*it).first).hasMatch() &&
-                    (!suppressMultiforms || !usedArticles.contains((*it).second.first))) {
-                res.append((*it).first);
-                if (suppressMultiforms)
-                    usedArticles.append((*it).second.first);
-            }
+    auto it = qAsConst(m_index).lowerBound(word);
 
-            if (res.count()>=maxLookupWords) break;
+    if (it == m_index.constEnd()) return res;
+    if (!it.key().startsWith(word)) // nothing similar found in sorted key list
+        return res;
+
+    while ((it != m_index.constEnd()) && (res.count()<maxLookupWords)) {
+        if (it.key().startsWith(word)) {
+            if (!suppressMultiforms || !usedArticles.contains(it.value().first)) {
+                res.append(it.key());
+                if (suppressMultiforms)
+                    usedArticles.append(it.value().first);
+            }
         }
+        it++;
     }
 
     return res;
@@ -252,7 +241,7 @@ QString ZStardictDictionary::loadArticle(const QString &word)
 {
     QString res;
 
-    const auto idxList = m_index.values(word);
+    const auto idxList = m_index.values(word); // NOLINT
     for (const auto& idx : idxList) {
         if (!res.isEmpty())
             res.append(ZDQSL("<br/><b>%1</b>").arg(word));
@@ -263,13 +252,13 @@ QString ZStardictDictionary::loadArticle(const QString &word)
         QByteArray article = dictZipRead(&m_dict,&m_dictData,offset,size);
 
         QString articleText;
-        auto it = article.constBegin();
+        const auto *it = article.constBegin();
 
         if (!m_sameTypeSequence.isEmpty()) {
             for (int seq=0; seq<m_sameTypeSequence.length(); seq++) {
                 bool entrySizeKnown = (seq == (m_sameTypeSequence.length() - 1));
 
-                uint32_t entrySize;
+                uint32_t entrySize = 0;
 
                 if (entrySizeKnown) {
                     entrySize = size;

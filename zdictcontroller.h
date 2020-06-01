@@ -25,7 +25,6 @@ public:
     void loadDictionaries(const QStringList& pathList);
 
     QStringList wordLookup(const QString& word,
-                           const QRegularExpression& filter = QRegularExpression(),
                            bool suppressMultiforms = false,
                            int maxLookupWords = defaultMaxLookupWords);
     QString loadArticle(const QString& word, bool addDictionaryName = true);

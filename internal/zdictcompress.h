@@ -12,7 +12,7 @@ class DictFileData
 {
 public:
     bool isDictZip { false };
-    int headerLength { 0 };
+    qint64 headerLength { 0L };
     quint16 chunkLength { 0U };
     qint16 chunkCount { 0 };
     QList<qint16> chunks;

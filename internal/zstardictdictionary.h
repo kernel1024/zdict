@@ -10,13 +10,15 @@
 
 namespace ZDict {
 
+using ZStardictIndex = QMultiMap<QString,QPair<quint64,quint32> >;
+
 class ZStardictDictionary : public ZDictionary
 {
     Q_OBJECT
 
     friend class ZDictController;
 private:
-    QMultiMap<QString,QPair<quint64,quint32> > m_index;
+    ZStardictIndex m_index;
 
     QFile m_dict;
     DictFileData m_dictData;
@@ -38,7 +40,6 @@ public:
 protected:
     bool loadIndexes(const QString& indexFile) override;
     QStringList wordLookup(const QString& word,
-                           const QRegularExpression& filter = QRegularExpression(),
                            bool suppressMultiforms = false,
                            int maxLookupWords = defaultMaxLookupWords) override;
     QString loadArticle(const QString& word) override;
