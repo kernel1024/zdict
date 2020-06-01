@@ -73,7 +73,6 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
     });
 
     connect(th,&QThread::finished,th,&QThread::deleteLater);
-
     th->start();
 }
 
@@ -93,6 +92,7 @@ QStringList ZDictController::wordLookup(const QString &word,
     QMutex resMutex;
     std::for_each(std::execution::par,m_dicts.constBegin(),m_dicts.constEnd(),
                   [&res,&resMutex,w,maxLookupWords,suppressMultiforms](const QPointer<ZDictionary> & ptr){
+        ptr->resetStopRequest();
         const QStringList sl = ptr->wordLookup(w,suppressMultiforms,maxLookupWords);
         resMutex.lock();
         res.append(sl);
@@ -111,6 +111,16 @@ QStringList ZDictController::wordLookup(const QString &word,
     return out;
 }
 
+void ZDictController::wordLookupAsync(const QString &word, bool suppressMultiforms, int maxLookupWords)
+{
+    QThread *th = QThread::create([this,word,suppressMultiforms,maxLookupWords]{
+        QStringList res = wordLookup(word,suppressMultiforms,maxLookupWords);
+        Q_EMIT wordListComplete(res);
+    });
+    connect(th,&QThread::finished,th,&QThread::deleteLater);
+    th->start();
+}
+
 QString ZDictController::loadArticle(const QString &word, bool addDictionaryName)
 {
     const QRegularExpression rx(ZDQSL("\\s+\\[.*\\]"));
@@ -122,6 +132,7 @@ QString ZDictController::loadArticle(const QString &word, bool addDictionaryName
     w.remove(rx);
 
     for (const auto& dict : qAsConst(m_dicts)) {
+        dict->resetStopRequest();
         const QString article = dict->loadArticle(w);
         if (!article.isEmpty()) {
             QString hr;
@@ -135,6 +146,23 @@ QString ZDictController::loadArticle(const QString &word, bool addDictionaryName
         }
     }
     return res;
+}
+
+void ZDictController::loadArticleAsync(const QString &word, bool addDictionaryName)
+{
+    QThread *th = QThread::create([this,word,addDictionaryName]{
+        QString res = loadArticle(word,addDictionaryName);
+        Q_EMIT articleComplete(res);
+    });
+    connect(th,&QThread::finished,th,&QThread::deleteLater);
+    th->start();
+}
+
+void ZDictController::cancelActiveWork()
+{
+    for (const auto &dict : qAsConst(m_dicts)) {
+        dict->stopRequest();
+    }
 }
 
 QStringList ZDictController::getLoadedDictionaries() const

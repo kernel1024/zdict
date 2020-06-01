@@ -22,18 +22,26 @@ public:
     explicit ZDictController(QObject *parent = nullptr);
     ~ZDictController() override;
 
+    void setMaxLookupWords(int maxLookupWords);
+    QStringList getLoadedDictionaries() const;
     void loadDictionaries(const QStringList& pathList);
 
     QStringList wordLookup(const QString& word,
                            bool suppressMultiforms = false,
                            int maxLookupWords = defaultMaxLookupWords);
+    void wordLookupAsync(const QString& word,
+                         bool suppressMultiforms = false,
+                         int maxLookupWords = defaultMaxLookupWords);
+
     QString loadArticle(const QString& word, bool addDictionaryName = true);
-
-    void setMaxLookupWords(int maxLookupWords);
-
-    QStringList getLoadedDictionaries() const;
+    void loadArticleAsync(const QString& word, bool addDictionaryName = true);
 
 Q_SIGNALS:
+    void wordListComplete(const QStringList& words); // cross-thread signal, use queued connect!
+    void articleComplete(const QString& article); // cross-thread signal, use queued connect!
+
+public Q_SLOTS:
+    void cancelActiveWork();
 
 };
 

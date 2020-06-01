@@ -193,6 +193,8 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
                                             int maxLookupWords)
 {
     QStringList res;
+    if (isStopRequested())
+        return res;
 
     QList<quint64> usedArticles;
     auto it = qAsConst(m_index).lowerBound(word);
@@ -201,7 +203,7 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
     if (!it.key().startsWith(word)) // nothing similar found in sorted key list
         return res;
 
-    while ((it != m_index.constEnd()) && (res.count()<maxLookupWords)) {
+    while ((it != m_index.constEnd()) && (res.count()<maxLookupWords) && (!isStopRequested())) {
         if (it.key().startsWith(word)) {
             if (!suppressMultiforms || !usedArticles.contains(it.value().first)) {
                 res.append(it.key());
@@ -243,6 +245,9 @@ QString ZStardictDictionary::loadArticle(const QString &word)
 
     const auto idxList = m_index.values(word); // NOLINT
     for (const auto& idx : idxList) {
+        if (isStopRequested())
+            return res;
+
         if (!res.isEmpty())
             res.append(ZDQSL("<br/><b>%1</b>").arg(word));
 
