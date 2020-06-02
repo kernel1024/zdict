@@ -5,6 +5,7 @@ Makefile*
 *.so
 *.so.debug
 *.o
+*.a
 .cd.rc
 *.swp
 core
@@ -29,3 +30,19 @@ moc_*.h
 =======
 *.pro.user*
 *~
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+.#*
+*.cbp
+*_autogen
