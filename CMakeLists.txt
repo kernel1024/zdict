@@ -25,7 +25,6 @@ find_package(Qt5 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
 set(SOURCES
     internal/zdictconversions.cpp
     internal/zdictcompress.cpp
-    internal/zdictionary.cpp
     internal/zstardictdictionary.cpp
     zdictcontroller.cpp
 )

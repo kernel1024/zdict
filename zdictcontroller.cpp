@@ -25,9 +25,9 @@ ZDictController::~ZDictController() = default;
 
 void ZDictController::loadDictionaries(const QStringList &pathList)
 {
-    QThread* callerThread = thread();
+    m_dicts.clear();
 
-    QThread* th = QThread::create([this,callerThread,pathList]{
+    QThread* th = QThread::create([this,pathList]{
 
         QStringList files;
 
@@ -38,7 +38,7 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
         }
 
         std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
-                      [this,callerThread](const QString& filename){
+                      [this](const QString& filename){
             QFileInfo fi(filename);
             if (!fi.exists()) return;
 
@@ -57,14 +57,12 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
 
             if (d) {
                 m_dictsMutex.lock();
-                m_dicts << QPointer<ZDictionary>(d);
+                m_dicts.append(QSharedPointer<ZDictionary>(d));
                 m_dictsMutex.unlock();
 
                 qInfo() << ZDQSL("Dictionary loaded: %1 (%2)")
                            .arg(d->getName())
                            .arg(d->getWordCount());
-
-                d->moveToThread(callerThread);
             }
         });
 
@@ -91,7 +89,7 @@ QStringList ZDictController::wordLookup(const QString &word,
     // Multithreaded word search - one thread per dictionary
     QMutex resMutex;
     std::for_each(std::execution::par,m_dicts.constBegin(),m_dicts.constEnd(),
-                  [&res,&resMutex,w,maxLookupWords,suppressMultiforms](const QPointer<ZDictionary> & ptr){
+                  [&res,&resMutex,w,maxLookupWords,suppressMultiforms](const QSharedPointer<ZDictionary> & ptr){
         ptr->resetStopRequest();
         const QStringList sl = ptr->wordLookup(w,suppressMultiforms,maxLookupWords);
         resMutex.lock();

@@ -14,7 +14,7 @@ class ZDictController : public QObject
 {
     Q_OBJECT
 private:
-    QVector<QPointer<ZDictionary> > m_dicts;
+    QVector<QSharedPointer<ZDictionary> > m_dicts;
     QMutex m_dictsMutex;
     QAtomicInteger<bool> m_loaded;
 

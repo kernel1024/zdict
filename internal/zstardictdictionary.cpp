@@ -16,8 +16,8 @@
 
 namespace ZDict {
 
-ZStardictDictionary::ZStardictDictionary(QObject *parent)
-    : ZDictionary(parent)
+ZStardictDictionary::ZStardictDictionary()
+    : ZDictionary()
 {
 }
 
@@ -25,6 +25,7 @@ ZStardictDictionary::~ZStardictDictionary()
 {
     if (m_dict.isOpen())
         m_dict.close();
+    qInfo() << "Unloading dictionary" << m_name;
 }
 
 bool ZStardictDictionary::loadIndexes(const QString &indexFile)

@@ -1,7 +1,6 @@
 #ifndef ZSTARDICTDICTIONARY_H
 #define ZSTARDICTDICTIONARY_H
 
-#include <QObject>
 #include <QStringList>
 #include <QMultiMap>
 #include <QVector>
@@ -14,8 +13,6 @@ using ZStardictIndex = QMultiMap<QString,QPair<quint64,quint32> >;
 
 class ZStardictDictionary : public ZDictionary
 {
-    Q_OBJECT
-
     friend class ZDictController;
 private:
     ZStardictIndex m_index;
@@ -34,7 +31,7 @@ private:
     QString handleResource(QChar type, const char *data, quint32 size);
 
 public:
-    ZStardictDictionary(QObject *parent = nullptr);
+    ZStardictDictionary();
     ~ZStardictDictionary() override;
 
 protected:

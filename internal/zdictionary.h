@@ -1,7 +1,6 @@
 #ifndef ZDICTIONARY_H
 #define ZDICTIONARY_H
 
-#include <QObject>
 #include <QStringList>
 #include <QRegularExpression>
 #include <QAtomicInteger>
@@ -14,17 +13,16 @@ const int defaultMaxLookupWords = 10000;
 
 class ZDictController;
 
-class ZDictionary : public QObject
+class ZDictionary
 {
     friend class ZDictController;
 
-    Q_OBJECT
 private:
     QAtomicInteger<bool> m_stopRequest;
 
 public:
-    ZDictionary(QObject *parent = nullptr);
-    ~ZDictionary() override;
+    ZDictionary() = default;
+    virtual ~ZDictionary() = default;
 
     inline void resetStopRequest() { m_stopRequest.storeRelease(false); }
     inline void stopRequest() { m_stopRequest.storeRelease(true); }
