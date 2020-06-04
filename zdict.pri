@@ -5,7 +5,6 @@ SOURCES += \
     $$PWD/internal/zdictconversions.cpp \
     $$PWD/zdictcontroller.cpp \
     $$PWD/internal/zdictcompress.cpp \
-    $$PWD/internal/zdictionary.cpp \
     $$PWD/internal/zstardictdictionary.cpp
 
 HEADERS += \
