@@ -16,10 +16,7 @@
 
 namespace ZDict {
 
-ZStardictDictionary::ZStardictDictionary()
-    : ZDictionary()
-{
-}
+ZStardictDictionary::ZStardictDictionary() = default;
 
 ZStardictDictionary::~ZStardictDictionary()
 {

@@ -23,6 +23,8 @@ private:
 public:
     ZDictionary() = default;
     virtual ~ZDictionary() = default;
+    ZDictionary(const ZDictionary& other) = delete;
+    ZDictionary& operator = (const ZDictionary &t) = delete;
 
     inline void resetStopRequest() { m_stopRequest.storeRelease(false); }
     inline void stopRequest() { m_stopRequest.storeRelease(true); }
