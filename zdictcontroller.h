@@ -39,6 +39,7 @@ public:
 Q_SIGNALS:
     void wordListComplete(const QStringList& words); // cross-thread signal, use queued connect!
     void articleComplete(const QString& article); // cross-thread signal, use queued connect!
+    void dictionariesLoaded(const QString& message); // cross-thread signal, use queued connect!
 
 public Q_SLOTS:
     void cancelActiveWork();

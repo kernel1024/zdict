@@ -37,8 +37,9 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
                 files.append(it.next());
         }
 
+        QAtomicInteger<int> wordCount;
         std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
-                      [this](const QString& filename){
+                      [this,&wordCount](const QString& filename){
             QFileInfo fi(filename);
             if (!fi.exists()) return;
 
@@ -60,13 +61,18 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
                 m_dicts.append(QSharedPointer<ZDictionary>(d));
                 m_dictsMutex.unlock();
 
+                int wc = d->getWordCount();
+                wordCount.fetchAndAddRelease(wc);
                 qInfo() << ZDQSL("Dictionary loaded: %1 (%2)")
                            .arg(d->getName())
-                           .arg(d->getWordCount());
+                           .arg(wc);
             }
         });
 
-        qInfo() << ZDQSL("Dictionaries loading complete, %1 dictionaries loaded.").arg(m_dicts.count());
+        int dictsCount = m_dicts.count();
+        qInfo() << ZDQSL("Dictionaries loading complete, %1 dictionaries loaded.").arg(dictsCount);
+        Q_EMIT dictionariesLoaded(ZDQSL("Loaded %1 dictionaries (%2 words).")
+                                  .arg(dictsCount).arg(wordCount.loadAcquire()));
         m_loaded.storeRelease(true);
     });
 
