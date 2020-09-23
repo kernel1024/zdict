@@ -123,7 +123,7 @@ bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned
         return false;
     }
 
-    binidx.append(QChar(0x0));
+    binidx.append('\0');
     int wordCounter = 0;
     for (auto it = binidx.constBegin(), end = binidx.constEnd(); it<(end-1);) {
         int wordLen = strlen(it);
