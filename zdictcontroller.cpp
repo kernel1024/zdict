@@ -77,6 +77,7 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
     });
 
     connect(th,&QThread::finished,th,&QThread::deleteLater);
+    th->setObjectName(ZDQSL("ZDICT_startup"));
     th->start();
 }
 
@@ -122,6 +123,7 @@ void ZDictController::wordLookupAsync(const QString &word, bool suppressMultifor
         Q_EMIT wordListComplete(res);
     });
     connect(th,&QThread::finished,th,&QThread::deleteLater);
+    th->setObjectName(ZDQSL("ZDICT_lookup"));
     th->start();
 }
 
@@ -159,6 +161,7 @@ void ZDictController::loadArticleAsync(const QString &word, bool addDictionaryNa
         Q_EMIT articleComplete(res);
     });
     connect(th,&QThread::finished,th,&QThread::deleteLater);
+    th->setObjectName(ZDQSL("ZDICT_article"));
     th->start();
 }
 
