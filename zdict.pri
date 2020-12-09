@@ -1,3 +1,5 @@
+QT += xml
+
 INCLUDEPATH += $$PWD
 DEPENDPATH += $$PWD
 
