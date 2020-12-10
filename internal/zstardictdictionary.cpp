@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QTextStream>
+#include <QCoreApplication>
 #include "zstardictdictionary.h"
 #include "zdictcompress.h"
 #include "zdictconversions.h"
@@ -45,6 +46,8 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
     }
 
     while (!ifos.atEnd()) {
+        if (QCoreApplication::closingDown()) return false;
+
         line = ifos.readLine().trimmed();
 
         int eq = line.indexOf('=');
@@ -126,6 +129,8 @@ bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned
     binidx.append('\0');
     int wordCounter = 0;
     for (auto it = binidx.constBegin(), end = binidx.constEnd(); it<(end-1);) {
+        if (QCoreApplication::closingDown()) return false;
+
         int wordLen = strlen(it);
         if ((it+wordLen+1+sizeof(quint32)*2)>end) {
             //qWarning() << "Stardict: unexpected end of IDX file.";

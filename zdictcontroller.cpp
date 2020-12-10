@@ -3,6 +3,7 @@
 #include <QFileInfo>
 #include <QString>
 #include <QThread>
+#include <QCoreApplication>
 
 #include <algorithm>
 #include <execution>
@@ -40,6 +41,8 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
         QAtomicInteger<int> wordCount;
         std::for_each(std::execution::par,files.constBegin(),files.constEnd(),
                       [this,&wordCount](const QString& filename){
+            if (QCoreApplication::closingDown()) return;
+
             QFileInfo fi(filename);
             if (!fi.exists()) return;
 
@@ -57,6 +60,8 @@ void ZDictController::loadDictionaries(const QStringList &pathList)
             }
 
             if (d) {
+                if (QCoreApplication::closingDown()) return;
+
                 m_dictsMutex.lock();
                 m_dicts.append(QSharedPointer<ZDictionary>(d));
                 m_dictsMutex.unlock();
