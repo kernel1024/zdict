@@ -13,9 +13,9 @@
 QString ZDictConversions::htmlPreformat(const QString & str)
 {
     QString result = str.toHtmlEscaped();
-    result.replace('\t',ZDQSL("&emsp;"));
-    result.replace('\n',ZDQSL("<br/>"));
-    result.remove('\r');
+    result.replace(u'\t',ZDQSL("&emsp;"));
+    result.replace(u'\n',ZDQSL("<br/>"));
+    result.remove(u'\r');
 
     return result;
 }

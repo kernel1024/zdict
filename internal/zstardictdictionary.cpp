@@ -50,7 +50,7 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
 
         line = ifos.readLine().trimmed();
 
-        int eq = line.indexOf('=');
+        int eq = line.indexOf(u'=');
         if (eq<0) continue;
 
         const QString name = line.left(eq).trimmed().toLower();
@@ -126,7 +126,7 @@ bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned
         return false;
     }
 
-    binidx.append('\0');
+    binidx.append(u'\0');
     int wordCounter = 0;
     for (auto it = binidx.constBegin(), end = binidx.constEnd(); it<(end-1);) {
         if (QCoreApplication::closingDown()) return false;
@@ -221,16 +221,16 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
 
 QString ZStardictDictionary::handleResource(QChar type, const char *data, quint32 size)
 {
-    if (type == QChar('x')) // Xdxf content
+    if (type == QChar(u'x')) // Xdxf content
         return ZDictConversions::xdxf2Html(QString::fromUtf8(data,size));
 
-    if ((type == QChar('h') || (type == QChar('g')))) // Html content or Pango markup
+    if ((type == QChar(u'h') || (type == QChar(u'g')))) // Html content or Pango markup
         return QString::fromUtf8(data, size );
 
-    if (type == QChar('m')) // Pure meaning, usually means preformatted text
+    if (type == QChar(u'm')) // Pure meaning, usually means preformatted text
         return ZDictConversions::htmlPreformat(QString::fromUtf8(data,size));
 
-    if (type == QChar('l')) // Same as 'm', but not in utf8, instead in current locale's
+    if (type == QChar(u'l')) // Same as 'm', but not in utf8, instead in current locale's
         return ZDictConversions::htmlPreformat(QString::fromLocal8Bit(data,size));
 
     if (type.isLower()) {
