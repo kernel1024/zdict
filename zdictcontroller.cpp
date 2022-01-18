@@ -1,12 +1,12 @@
+#include <algorithm>
+#include <execution>
+
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QString>
 #include <QThread>
 #include <QCoreApplication>
-
-#include <algorithm>
-#include <execution>
 
 #include "zdictcontroller.h"
 #include "internal/zdictionary.h"
