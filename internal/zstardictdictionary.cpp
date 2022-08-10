@@ -95,8 +95,8 @@ bool ZStardictDictionary::loadIndexes(const QString &indexFile)
 
 bool ZStardictDictionary::loadStardictIndex(const QString &ifoFilename, unsigned int expectedIndexFileSize)
 {
-    const QRegularExpression rxSplitter(ZDQSL("[\\s[:punct:]]"),
-                                        QRegularExpression::UseUnicodePropertiesOption);
+    static const QRegularExpression rxSplitter(ZDQSL("[\\s[:punct:]]"),
+                                               QRegularExpression::UseUnicodePropertiesOption);
 
     QFileInfo fi(ifoFilename);
     const QString idxFilename = fi.dir().filePath(ZDQSL("%1.%2").arg(fi.completeBaseName(),ZDQSL("idx")));

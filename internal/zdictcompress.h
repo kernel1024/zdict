@@ -18,7 +18,7 @@ public:
     QList<qint16> chunks;
     QList<quint64> offsets;
 
-    DictFileData() {}
+    DictFileData() = default;
     void clear() {
         isDictZip = false;
         headerLength = 0;
