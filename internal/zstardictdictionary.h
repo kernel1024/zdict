@@ -33,6 +33,8 @@ private:
 public:
     ZStardictDictionary();
     ~ZStardictDictionary() override;
+    ZStardictDictionary(const ZStardictDictionary& other) = delete;
+    ZStardictDictionary& operator = (const ZStardictDictionary &t) = delete;
 
 protected:
     bool loadIndexes(const QString& indexFile) override;

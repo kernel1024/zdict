@@ -10,7 +10,6 @@
 
 #include "zdictcontroller.h"
 #include "internal/zdictionary.h"
-#include "internal/zdictcompress.h"
 #include "internal/zstardictdictionary.h"
 
 #include <QDebug>
@@ -90,13 +89,16 @@ QStringList ZDictController::wordLookup(const QString &word,
                                         bool suppressMultiforms,
                                         int maxLookupWords)
 {
+    static const QRegularExpression whitespacesRx(ZDQSL("\\s+.*"),QRegularExpression::UseUnicodePropertiesOption);
+    static const QRegularExpression nonLettersRx(ZDQSL("\\W+"),QRegularExpression::UseUnicodePropertiesOption);
     QStringList res;
     if (!m_loaded.loadAcquire()) return res;
     if (word.isEmpty()) return res;
 
     QString w = word.toLower();
-    w.remove(QRegularExpression(ZDQSL("\\s+.*"),QRegularExpression::UseUnicodePropertiesOption));
-    w.remove(QRegularExpression(ZDQSL("\\W+"),QRegularExpression::UseUnicodePropertiesOption));
+
+    w.remove(whitespacesRx);
+    w.remove(nonLettersRx);
 
     // Multithreaded word search - one thread per dictionary
     QMutex resMutex;
@@ -134,7 +136,7 @@ void ZDictController::wordLookupAsync(const QString &word, bool suppressMultifor
 
 QString ZDictController::loadArticle(const QString &word, bool addDictionaryName)
 {
-    const QRegularExpression rx(ZDQSL("\\s+\\[.*\\]"));
+    static const QRegularExpression rx(ZDQSL("\\s+\\[.*\\]"));
 
     QString res;
     if (!m_loaded.loadAcquire()) return res;

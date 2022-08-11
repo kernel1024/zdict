@@ -6,7 +6,7 @@
 class ZDictConversions
 {
 public:
-    ZDictConversions() {};
+    ZDictConversions() = default;;
 
     static QString htmlPreformat(const QString &str);
     static QString xdxf2Html(const QString &in);

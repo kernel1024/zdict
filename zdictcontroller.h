@@ -13,6 +13,7 @@ namespace ZDict {
 class ZDictController : public QObject
 {
     Q_OBJECT
+    Q_DISABLE_COPY(ZDictController)
 private:
     QVector<QSharedPointer<ZDictionary> > m_dicts;
     QMutex m_dictsMutex;
