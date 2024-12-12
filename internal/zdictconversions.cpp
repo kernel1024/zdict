@@ -35,14 +35,11 @@ QString ZDictConversions::xdxf2Html(const QString& in)
     inConverted.replace('\n',ZDQSL("<br/>"));
 
     QDomDocument dd;
-
-    QString errorStr;
-    int errorLine = 0;
-    int errorColumn = 0;
-    if (!dd.setContent(ZDQSL("<div>%1</div>").arg(inConverted).toUtf8(), false, &errorStr, &errorLine, &errorColumn  ) )
+    auto parseResult = dd.setContent(ZDQSL("<div>%1</div>").arg(inConverted).toUtf8());
+    if (!parseResult)
     {
-        qWarning() << "Xdxf2html error, xml parse failed: " << errorStr << " at "
-                   << errorLine << errorColumn;
+        qWarning() << "Xdxf2html error, xml parse failed: " << parseResult.errorMessage << " at "
+                   << parseResult.errorLine << parseResult.errorColumn;
         qWarning() << "The input was: " << inConverted;
         return in;
     }

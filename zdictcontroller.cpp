@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <execution>
+#include <utility>
 
 #include <QDir>
 #include <QDirIterator>
@@ -144,7 +145,7 @@ QString ZDictController::loadArticle(const QString &word, bool addDictionaryName
     QString w = word.toLower();
     w.remove(rx);
 
-    for (const auto& dict : qAsConst(m_dicts)) {
+    for (const auto& dict : std::as_const(m_dicts)) {
         dict->resetStopRequest();
         const QString article = dict->loadArticle(w);
         if (!article.isEmpty()) {
@@ -174,7 +175,7 @@ void ZDictController::loadArticleAsync(const QString &word, bool addDictionaryNa
 
 void ZDictController::cancelActiveWork()
 {
-    for (const auto &dict : qAsConst(m_dicts)) {
+    for (const auto &dict : std::as_const(m_dicts)) {
         dict->stopRequest();
     }
 }
@@ -185,7 +186,7 @@ QStringList ZDictController::getLoadedDictionaries() const
     if (!m_loaded.loadAcquire()) return res;
 
     res.reserve(m_dicts.count());
-    for (const auto & dict : qAsConst(m_dicts))
+    for (const auto & dict : std::as_const(m_dicts))
         res.append(ZDQSL("%1 (%2)").arg(dict->getName()).arg(dict->getWordCount()));
 
     return res;

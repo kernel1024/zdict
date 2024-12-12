@@ -4,6 +4,8 @@
  *   (c) 2008-2011 Konstantin Isakov <ikm@users.berlios.de>
  */
 
+#include <utility>
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -199,7 +201,7 @@ QStringList ZStardictDictionary::wordLookup(const QString& word,
         return res;
 
     QList<quint64> usedArticles;
-    auto it = qAsConst(m_index).lowerBound(word);
+    auto it = std::as_const(m_index).lowerBound(word);
 
     if (it == m_index.constEnd()) return res;
     if (!it.key().startsWith(word)) // nothing similar found in sorted key list
